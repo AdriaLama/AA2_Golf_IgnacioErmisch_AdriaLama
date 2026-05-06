@@ -68,7 +68,7 @@ public class PhysicsManager : MonoBehaviour
         else
             heightAboveGround = float.MaxValue;
 
-        bool inAir = !grounded && ball.position.y > 1f;
+        bool inAir = !grounded && heightAboveGround > 1f;
 
         if (inAir && velocity.magnitude > 0.001f)
         {
