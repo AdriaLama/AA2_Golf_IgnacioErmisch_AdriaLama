@@ -5,6 +5,9 @@ TagManager:
   serializedVersion: 3
   tags:
   - Ball
+  - Cesped
+  - Hielo
+  - Arena
   layers:
   - Default
   - TransparentFX
