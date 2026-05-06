@@ -33,7 +33,7 @@ public class BallController : MonoBehaviour
 
         if (isDragging && Input.GetMouseButton(0))
         {
-            accumulatedDrag += -Input.GetAxis("Mouse Y") * 1.5f;
+            accumulatedDrag += -Input.GetAxis("Mouse Y") * 0.5f;
             accumulatedDrag = Mathf.Clamp(accumulatedDrag, 0f, maxDragDistance);
 
             float force = Mathf.Clamp01(accumulatedDrag / maxDragDistance) * maxForce;
