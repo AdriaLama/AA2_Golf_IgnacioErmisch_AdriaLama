@@ -17,11 +17,13 @@ public class BallController : MonoBehaviour
         line.endWidth = 0.05f;
         line.positionCount = 2;
         line.enabled = false;
+        line.material = new Material(Shader.Find("Sprites/Default"));
     }
 
     void Update()
     {
-        if (PhysicsManager.Instance.velocity.magnitude > 0.1f) return;
+        if (PhysicsManager.Instance.velocity.magnitude > 0.1f) 
+            return;
 
         if (Input.GetMouseButtonDown(0))
         {
@@ -35,7 +37,12 @@ public class BallController : MonoBehaviour
             accumulatedDrag = Mathf.Clamp(accumulatedDrag, 0f, maxDragDistance);
 
             float force = Mathf.Clamp01(accumulatedDrag / maxDragDistance) * maxForce;
+            float t = force / maxForce;
             Vector3 direction = GetShootDirection();
+
+            Color color = Color.Lerp(Color.green, Color.red, t);
+            line.startColor = color;
+            line.endColor = color;
 
             line.enabled = true;
             line.SetPosition(0, transform.position);
