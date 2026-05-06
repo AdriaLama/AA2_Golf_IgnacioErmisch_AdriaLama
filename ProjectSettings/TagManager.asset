@@ -8,6 +8,7 @@ TagManager:
   - Cesped
   - Hielo
   - Arena
+  - Border
   layers:
   - Default
   - TransparentFX
