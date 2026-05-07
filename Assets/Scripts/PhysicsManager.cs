@@ -27,7 +27,7 @@ public class PhysicsManager : MonoBehaviour
     public int maxBorderContacts = 2;
     public int borderContactCount = 0;
 
-    public float airDensity = 1.225f; 
+    public float airDensity = 1.225f;
     public float dragCoefficient = 0.47f;
     private float crossSection;
     private float heightAboveGround;
@@ -59,16 +59,19 @@ public class PhysicsManager : MonoBehaviour
 
         float dt = Time.fixedDeltaTime;
 
-        velocity.y -= GRAVITY * dt;
-
-        bool grounded = Physics.Raycast(ball.position + Vector3.up * radius, Vector3.down, out RaycastHit groundHit, radius * 2f);
+        bool grounded = Physics.Raycast(ball.position + Vector3.up * radius, Vector3.down, out RaycastHit groundHit, radius * 4f);
 
         if (grounded)
             heightAboveGround = ball.position.y - groundHit.point.y;
         else
             heightAboveGround = float.MaxValue;
 
-        bool inAir = !grounded && heightAboveGround > 1f;
+        bool inAir = !grounded || heightAboveGround > 1f;
+
+        if (!grounded)
+        {
+            velocity.y -= GRAVITY * dt;
+        }
 
         if (inAir && velocity.magnitude > 0.001f)
         {
@@ -78,38 +81,75 @@ public class PhysicsManager : MonoBehaviour
             velocity += dragAcc * dt;
         }
 
+        float slopeAngle = 0f;
+
         if (grounded)
         {
             if (groundHit.collider.CompareTag("Cesped")) currentTerrain = TerrainType.Cesped;
             else if (groundHit.collider.CompareTag("Hielo")) currentTerrain = TerrainType.Hielo;
             else if (groundHit.collider.CompareTag("Arena")) currentTerrain = TerrainType.Arena;
 
-        }
-
-        if (grounded && velocity.magnitude > 0.05f)
-        {
+            slopeAngle = Vector3.Angle(groundHit.normal, Vector3.up);
+            float theta = slopeAngle * Mathf.Deg2Rad;
             float mu = GetFrictionCoeff();
-            float fNormal = mass * GRAVITY;
-            float torque = -mu * fNormal * radius;
-            float inertia = (2f / 5f) * mass * radius * radius;
-            float alpha = torque / inertia;
-            float frictionAcc = alpha * radius;
 
-            Vector3 flatVel = new Vector3(velocity.x, 0f, velocity.z);
-            angularVelocity = flatVel.magnitude / radius;
-
-            if (flatVel.magnitude > 0.001f)
+            if (slopeAngle > 1f)
             {
-                Vector3 frictionForce = flatVel.normalized * frictionAcc * dt;
-                if (frictionForce.magnitude >= flatVel.magnitude)
-                    velocity = new Vector3(0f, velocity.y, 0f);
+                float fNormal = mass * GRAVITY * Mathf.Cos(theta);
+                float fParallel = mass * GRAVITY * Mathf.Sin(theta);
+                float fFriction = mu * fNormal;
+                Vector3 slopeDir = Vector3.ProjectOnPlane(Vector3.down, groundHit.normal).normalized;
+
+                if (velocity.magnitude > 0.05f)
+                {
+  
+                    velocity += slopeDir * (fParallel / mass) * dt;
+
+                    Vector3 velOnPlane = Vector3.ProjectOnPlane(velocity, groundHit.normal);
+                    if (velOnPlane.magnitude > 0.001f)
+                    {
+                        Vector3 frictionAcc = -velOnPlane.normalized * (fFriction / mass) * dt;
+                        if (frictionAcc.magnitude >= velOnPlane.magnitude)
+                            velocity = Vector3.zero;
+                        else
+                            velocity += frictionAcc;
+                    }
+                }
                 else
-                    velocity += frictionForce;
+                {
+                    if (fParallel > fFriction)
+                    {
+                        velocity += slopeDir * ((fParallel - fFriction) / mass) * dt;
+                    }
+                }
             }
-               
+            else
+            {
+                if (velocity.magnitude > 0.05f)
+                {
+                    float fNormal = mass * GRAVITY;
+                    float torque = -mu * fNormal * radius;// τ = -µ·Fnormal·r
+                    float inertia = (2f / 5f) * mass * radius * radius; // I = 2/5·mr²
+                    float alpha = torque / inertia;
+                    float frictionAcc = alpha * radius; // a = α·r
+
+                    Vector3 flatVel = new Vector3(velocity.x, 0f, velocity.z);
+                    angularVelocity = flatVel.magnitude / radius;// ω = v/r
+
+                    if (flatVel.magnitude > 0.001f)
+                    {
+                        Vector3 frictionForce = flatVel.normalized * frictionAcc * dt;
+                        if (frictionForce.magnitude >= flatVel.magnitude)
+                            velocity = new Vector3(0f, velocity.y, 0f);
+                        else
+                            velocity += frictionForce;
+                    }
+                }
+            }
         }
 
-        if (velocity.magnitude < 0.15f)
+        float stopThreshold = slopeAngle > 1f ? 0.01f : 0.15f;
+        if (velocity.magnitude < stopThreshold && slopeAngle < 2f)
         {
             velocity = Vector3.zero;
             angularVelocity = 0f;
@@ -119,14 +159,17 @@ public class PhysicsManager : MonoBehaviour
 
         ball.position += velocity * dt;
 
-        grounded = Physics.Raycast(ball.position + Vector3.up * radius, Vector3.down, out groundHit, radius * 2f);
+        // Snap al suelo
+        grounded = Physics.Raycast(ball.position + Vector3.up * radius, Vector3.down, out groundHit, radius * 4f);
 
         if (grounded && velocity.y < 0.1f)
         {
             ball.position = groundHit.point + Vector3.up * radius;
-            velocity.y = 0f;
+            if (slopeAngle < 2f)
+                velocity.y = 0f;
+            else
+                velocity = Vector3.ProjectOnPlane(velocity, groundHit.normal);
         }
-
     }
 
     void ResolveWallCollisions(float dt)
@@ -166,6 +209,7 @@ public class PhysicsManager : MonoBehaviour
             }
         }
     }
+
     float GetRestitution(Collider col)
     {
         if (col.CompareTag("Goma")) return 0.8f;
