@@ -68,13 +68,11 @@ public class PhysicsManager : MonoBehaviour
 
         bool inAir = !grounded || heightAboveGround > 1f;
 
-        // Gravedad solo en el aire
         if (!grounded)
         {
             velocity.y -= GRAVITY * dt;
         }
 
-        // Resistencia del aire
         if (inAir && velocity.magnitude > 0.001f)
         {
             float speed = velocity.magnitude;
@@ -97,7 +95,6 @@ public class PhysicsManager : MonoBehaviour
 
             if (slopeAngle > 1f)
             {
-                // --- Plano inclinado ---
                 float fNormal = mass * GRAVITY * Mathf.Cos(theta);
                 float fParallel = mass * GRAVITY * Mathf.Sin(theta);
                 float fFriction = mu * fNormal;
@@ -105,7 +102,7 @@ public class PhysicsManager : MonoBehaviour
 
                 if (velocity.magnitude > 0.05f)
                 {
-                    // Bola en movimiento: Fparallel + friccion opuesta al movimiento
+  
                     velocity += slopeDir * (fParallel / mass) * dt;
 
                     Vector3 velOnPlane = Vector3.ProjectOnPlane(velocity, groundHit.normal);
@@ -120,7 +117,6 @@ public class PhysicsManager : MonoBehaviour
                 }
                 else
                 {
-                    // Bola casi parada: solo se mueve si Fparallel supera friccion estatica
                     if (fParallel > fFriction)
                     {
                         velocity += slopeDir * ((fParallel - fFriction) / mass) * dt;
@@ -129,17 +125,16 @@ public class PhysicsManager : MonoBehaviour
             }
             else
             {
-                // --- Terreno plano: friccion de rodadura igual que el original ---
                 if (velocity.magnitude > 0.05f)
                 {
                     float fNormal = mass * GRAVITY;
-                    float torque = -mu * fNormal * radius;           // τ = -µ·Fnormal·r
+                    float torque = -mu * fNormal * radius;// τ = -µ·Fnormal·r
                     float inertia = (2f / 5f) * mass * radius * radius; // I = 2/5·mr²
                     float alpha = torque / inertia;
-                    float frictionAcc = alpha * radius;              // a = α·r
+                    float frictionAcc = alpha * radius; // a = α·r
 
                     Vector3 flatVel = new Vector3(velocity.x, 0f, velocity.z);
-                    angularVelocity = flatVel.magnitude / radius;    // ω = v/r
+                    angularVelocity = flatVel.magnitude / radius;// ω = v/r
 
                     if (flatVel.magnitude > 0.001f)
                     {
