@@ -83,6 +83,7 @@ public class PhysicsManager : MonoBehaviour
             if (groundHit.collider.CompareTag("Cesped")) currentTerrain = TerrainType.Cesped;
             else if (groundHit.collider.CompareTag("Hielo")) currentTerrain = TerrainType.Hielo;
             else if (groundHit.collider.CompareTag("Arena")) currentTerrain = TerrainType.Arena;
+
         }
 
         if (grounded && velocity.magnitude > 0.05f)
@@ -98,10 +99,17 @@ public class PhysicsManager : MonoBehaviour
             angularVelocity = flatVel.magnitude / radius;
 
             if (flatVel.magnitude > 0.001f)
-                velocity += flatVel.normalized * frictionAcc * dt;
+            {
+                Vector3 frictionForce = flatVel.normalized * frictionAcc * dt;
+                if (frictionForce.magnitude >= flatVel.magnitude)
+                    velocity = new Vector3(0f, velocity.y, 0f);
+                else
+                    velocity += frictionForce;
+            }
+               
         }
 
-        if (velocity.magnitude < 0.05f)
+        if (velocity.magnitude < 0.15f)
         {
             velocity = Vector3.zero;
             angularVelocity = 0f;
@@ -113,7 +121,7 @@ public class PhysicsManager : MonoBehaviour
 
         grounded = Physics.Raycast(ball.position + Vector3.up * radius, Vector3.down, out groundHit, radius * 2f);
 
-        if (grounded && velocity.y < 0f)
+        if (grounded && velocity.y < 0.1f)
         {
             ball.position = groundHit.point + Vector3.up * radius;
             velocity.y = 0f;
@@ -129,25 +137,39 @@ public class PhysicsManager : MonoBehaviour
         float moveDist = velocity.magnitude * dt;
         int layerMask = ~(1 << LayerMask.NameToLayer("Ignore Raycast"));
 
-        if (Physics.SphereCast(ball.position,radius, moveDir,out RaycastHit wallHit,moveDist,layerMask))
+        RaycastHit[] hits = Physics.SphereCastAll(ball.position, radius, moveDir, moveDist, layerMask);
+
+        foreach (RaycastHit wallHit in hits)
         {
+            if (!wallHit.collider.CompareTag("Border") &&
+                !wallHit.collider.CompareTag("Goma") &&
+                !wallHit.collider.CompareTag("SacoArena"))
+                continue;
+
             Vector3 n = wallHit.normal;
-            if (Mathf.Abs(n.y) > 0.85f) return;
+            float vDotN = Vector3.Dot(velocity, n);
+            if (vDotN >= 0f) continue;
 
             float e = GetRestitution(wallHit.collider);
-            float vDotN = Vector3.Dot(velocity, n);
             velocity = velocity - (1f + e) * vDotN * n;
 
+            Vector3 vParallel = velocity - Vector3.Dot(velocity, n) * n;
+            velocity -= vParallel * 0.1f;
+
             if (wallHit.collider.CompareTag("Border"))
-            {
                 borderContactCount++;
+
+            if (velocity.magnitude < 0.15f)
+            {
+                velocity = Vector3.zero;
+                angularVelocity = 0f;
             }
         }
     }
     float GetRestitution(Collider col)
     {
         if (col.CompareTag("Goma")) return 0.8f;
-        if (col.CompareTag("Arena")) return 0.2f;
+        if (col.CompareTag("SacoArena")) return 0.2f;
         return 0.4f;
     }
 
