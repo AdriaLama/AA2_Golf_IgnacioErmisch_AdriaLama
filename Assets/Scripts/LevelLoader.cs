@@ -7,13 +7,22 @@ public class LevelLoader : MonoBehaviour
     public Transform hole;
     public float holeRadius = 0.8f;
 
+    [Header("Condiciones de victoria")]
+    public int minBorderContacts = 2;
+    public float maxSpeedAtHole = 0.5f;
+
+    [Header("UI Feedback (opcional)")]
+    public GameObject winPanel;
+
     private bool levelCompleted = false;
+    private bool ballInHole = false;
     private Transform ball;
 
     void Start()
     {
         ball = GameObject.FindGameObjectWithTag("Ball")?.transform;
         PhysicsManager.Instance.borderContactCount = 0;
+        if (winPanel != null) winPanel.SetActive(false);
     }
 
     void Update()
@@ -24,25 +33,33 @@ public class LevelLoader : MonoBehaviour
 
         Vector3 ballFlat = new Vector3(ball.position.x, 0f, ball.position.z);
         Vector3 holeFlat = new Vector3(hole.position.x, 0f, hole.position.z);
-        float dist = Vector3.Distance(ballFlat, holeFlat);
+        bool inHole = Vector3.Distance(ballFlat, holeFlat) < holeRadius;
 
-        bool inHole = dist < holeRadius;
-        bool slowEnough = pm.velocity.magnitude < 0.5f;
-        bool borderOk = pm.borderContactCount <= pm.maxBorderContacts;
-        bool ballStopped = pm.velocity.magnitude < 0.05f;
+        if (inHole && !ballInHole) ballInHole = true;
+        if (!inHole) ballInHole = false;
 
-        if (inHole && ballStopped && slowEnough && borderOk)
+        bool ballStopped = pm.velocity == Vector3.zero;
+
+        if (ballInHole && ballStopped)
         {
-            levelCompleted = true;
-            Invoke(nameof(LoadNextLevel), 1.5f);
+            bool slowEnough = pm.velocity.magnitude < maxSpeedAtHole;
+            bool enoughBounces = pm.borderContactCount >= minBorderContacts;
+
+            if (slowEnough && enoughBounces)
+            {
+                levelCompleted = true;             
+                if (winPanel != null) winPanel.SetActive(true);
+                Invoke(nameof(LoadNextLevel), 1.5f);
+            }
+            
         }
     }
 
     void LoadNextLevel()
     {
         string current = SceneManager.GetActiveScene().name;
-
         if (current == "Level_1") SceneManager.LoadScene("Level_2");
         else if (current == "Level_2") SceneManager.LoadScene("Level_3");
+        else SceneManager.LoadScene("MainMenu");
     }
 }
