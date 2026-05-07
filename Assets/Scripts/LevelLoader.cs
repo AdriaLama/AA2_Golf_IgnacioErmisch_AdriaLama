@@ -13,7 +13,7 @@ public class LevelLoader : MonoBehaviour
 
     [Header("UI")]
     public GameObject winPanel;
-    public TextMeshProUGUI botesParedText; // arrastra aquí el BotesPared
+    public TextMeshProUGUI botesParedText; 
 
     private bool levelCompleted = false;
     private bool ballInHole = false;
@@ -33,7 +33,6 @@ public class LevelLoader : MonoBehaviour
 
         PhysicsManager pm = PhysicsManager.Instance;
 
-        // --- Actualizar UI ---
         if (botesParedText != null)
             botesParedText.text = $"Botes: {pm.borderContactCount} / {pm.maxBorderContacts}";
 
@@ -47,7 +46,6 @@ public class LevelLoader : MonoBehaviour
             return;
         }
 
-        // --- Condición de victoria ---
         Vector3 ballFlat = new Vector3(ball.position.x, 0f, ball.position.z);
         Vector3 holeFlat = new Vector3(hole.position.x, 0f, hole.position.z);
         bool inHole = Vector3.Distance(ballFlat, holeFlat) < holeRadius;

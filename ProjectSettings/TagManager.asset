@@ -9,6 +9,8 @@ TagManager:
   - Hielo
   - Arena
   - Border
+  - Goma
+  - SacoArena
   layers:
   - Default
   - TransparentFX
