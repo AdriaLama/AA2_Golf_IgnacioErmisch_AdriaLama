@@ -5,14 +5,17 @@ public class CameraController : MonoBehaviour
     [Header("Objetivo")]
     public Transform target;
 
-    [Header("Órbita")]
     public float sensitivity = 3f;
-    public float distance = 5f;
+    public float distance = 2.5f;
     public float minY = -10f; 
-    public float maxY = 60f; 
+    public float maxY = 60f;
+
+    public float zoomSpeed = 3f;
+    public float minDistance = 1f;
+    public float maxDistance = 5f;
 
     private float currentX = 0f;
-    private float currentY = 20f; 
+    private float currentY = 20f;
 
     void Update()
     {
@@ -21,6 +24,13 @@ public class CameraController : MonoBehaviour
             currentX += Input.GetAxis("Mouse X") * sensitivity;
             currentY -= Input.GetAxis("Mouse Y") * sensitivity;
             currentY = Mathf.Clamp(currentY, minY, maxY);
+        }
+
+        float scroll = Input.GetAxis("Mouse ScrollWheel");
+        if (scroll != 0f)
+        {
+            distance -= scroll * zoomSpeed;
+            distance = Mathf.Clamp(distance, minDistance, maxDistance);
         }
     }
 

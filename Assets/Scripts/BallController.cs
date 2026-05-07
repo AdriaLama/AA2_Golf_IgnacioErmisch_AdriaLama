@@ -22,7 +22,7 @@ public class BallController : MonoBehaviour
 
     void Update()
     {
-        if (PhysicsManager.Instance.velocity.magnitude > 0.1f) 
+        if (PhysicsManager.Instance.velocity.magnitude > 0.15f) 
             return;
 
         if (Input.GetMouseButtonDown(0))
