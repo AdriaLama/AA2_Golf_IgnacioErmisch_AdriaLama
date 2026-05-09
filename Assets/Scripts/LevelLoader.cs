@@ -38,10 +38,8 @@ public class LevelLoader : MonoBehaviour
 
         if (levelCompleted) return;
 
-        // --- Fallo por exceso de botes ---
         if (pm.borderContactCount > pm.maxBorderContacts)
         {
-            Debug.Log($"FALLO: demasiados botes ({pm.borderContactCount}/{pm.maxBorderContacts})");
             Invoke(nameof(RestartLevel), 1f);
             return;
         }
@@ -60,7 +58,6 @@ public class LevelLoader : MonoBehaviour
             if (pm.velocity.magnitude < maxSpeedAtHole)
             {
                 levelCompleted = true;
-                Debug.Log($"VICTORIA | botes={pm.borderContactCount}");
                 if (winPanel != null) winPanel.SetActive(true);
                 Invoke(nameof(LoadNextLevel), 1.5f);
             }
