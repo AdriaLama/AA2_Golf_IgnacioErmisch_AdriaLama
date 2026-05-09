@@ -102,7 +102,7 @@ public class PhysicsManager : MonoBehaviour
 
                 if (velocity.magnitude > 0.05f)
                 {
-  
+
                     velocity += slopeDir * (fParallel / mass) * dt;
 
                     Vector3 velOnPlane = Vector3.ProjectOnPlane(velocity, groundHit.normal);
@@ -159,7 +159,6 @@ public class PhysicsManager : MonoBehaviour
 
         ball.position += velocity * dt;
 
-        // Snap al suelo
         grounded = Physics.Raycast(ball.position + Vector3.up * radius, Vector3.down, out groundHit, radius * 4f);
 
         if (grounded && velocity.y < 0.1f)
@@ -169,6 +168,14 @@ public class PhysicsManager : MonoBehaviour
                 velocity.y = 0f;
             else
                 velocity = Vector3.ProjectOnPlane(velocity, groundHit.normal);
+        }
+
+        if (velocity.magnitude > 0.01f)
+        {
+            Vector3 moveDir = new Vector3(velocity.x, 0f, velocity.z).normalized;
+            Vector3 rotAxis = Vector3.Cross(Vector3.up, moveDir);
+
+            ball.Rotate(rotAxis, angularVelocity * Mathf.Rad2Deg * dt, Space.World);
         }
     }
 
