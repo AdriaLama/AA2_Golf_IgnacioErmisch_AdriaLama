@@ -59,93 +59,25 @@ public class PhysicsManager : MonoBehaviour
 
         float dt = Time.fixedDeltaTime;
 
-        bool grounded = Physics.Raycast(ball.position + Vector3.up * radius, Vector3.down, out RaycastHit groundHit, radius * 4f);
-
-        if (grounded)
-            heightAboveGround = ball.position.y - groundHit.point.y;
-        else
-            heightAboveGround = float.MaxValue;
-
+        bool grounded = CheckGround(out RaycastHit groundHit);
         bool inAir = !grounded || heightAboveGround > 1f;
 
         if (!grounded)
-        {
-            velocity.y -= GRAVITY * dt;
-        }
+            ApplyGravity(dt);
 
         if (inAir && velocity.magnitude > 0.001f)
-        {
-            float speed = velocity.magnitude;
-            float fDrag = 0.5f * airDensity * speed * speed * dragCoefficient * crossSection;
-            Vector3 dragAcc = -velocity.normalized * (fDrag / mass);
-            velocity += dragAcc * dt;
-        }
+            ApplyAirDrag(dt);
 
         float slopeAngle = 0f;
-
         if (grounded)
         {
-            if (groundHit.collider.CompareTag("Cesped")) currentTerrain = TerrainType.Cesped;
-            else if (groundHit.collider.CompareTag("Hielo")) currentTerrain = TerrainType.Hielo;
-            else if (groundHit.collider.CompareTag("Arena")) currentTerrain = TerrainType.Arena;
-
+            UpdateTerrainType(groundHit.collider);
             slopeAngle = Vector3.Angle(groundHit.normal, Vector3.up);
-            float theta = slopeAngle * Mathf.Deg2Rad;
-            float mu = GetFrictionCoeff();
 
             if (slopeAngle > 1f)
-            {
-                float fNormal = mass * GRAVITY * Mathf.Cos(theta);
-                float fParallel = mass * GRAVITY * Mathf.Sin(theta);
-                float fFriction = mu * fNormal;
-                Vector3 slopeDir = Vector3.ProjectOnPlane(Vector3.down, groundHit.normal).normalized;
-
-                if (velocity.magnitude > 0.05f)
-                {
-
-                    velocity += slopeDir * (fParallel / mass) * dt;
-
-                    Vector3 velOnPlane = Vector3.ProjectOnPlane(velocity, groundHit.normal);
-                    if (velOnPlane.magnitude > 0.001f)
-                    {
-                        Vector3 frictionAcc = -velOnPlane.normalized * (fFriction / mass) * dt;
-                        if (frictionAcc.magnitude >= velOnPlane.magnitude)
-                            velocity = Vector3.zero;
-                        else
-                            velocity += frictionAcc;
-                    }
-                }
-                else
-                {
-                    if (fParallel > fFriction)
-                    {
-                        velocity += slopeDir * ((fParallel - fFriction) / mass) * dt;
-                    }
-                }
-            }
+                ApplySlopeForces(groundHit.normal, slopeAngle, dt);
             else
-            {
-                if (velocity.magnitude > 0.05f)
-                {
-                    float fNormal = mass * GRAVITY;
-                    float torque = -mu * fNormal * radius;// τ = -µ·Fnormal·r
-                    float inertia = (2f / 5f) * mass * radius * radius; // I = 2/5·mr²
-                    float alpha = torque / inertia;
-                    float frictionAcc = alpha * radius; // a = α·r
-
-                    Vector3 flatVel = new Vector3(velocity.x, 0f, velocity.z);
-                    angularVelocity = flatVel.magnitude / radius;// ω = v/r
-
-                    if (flatVel.magnitude > 0.001f)
-                    {
-                        Vector3 frictionForce = flatVel.normalized * frictionAcc * dt;
-                        if (frictionForce.magnitude >= flatVel.magnitude)
-                            velocity = new Vector3(0f, velocity.y, 0f);
-                        else
-                            velocity += frictionForce;
-                    }
-                }
-            }
+                ApplyFlatFriction(dt);
         }
 
         float stopThreshold = slopeAngle > 1f ? 0.01f : 0.15f;
@@ -160,7 +92,6 @@ public class PhysicsManager : MonoBehaviour
         ball.position += velocity * dt;
 
         grounded = Physics.Raycast(ball.position + Vector3.up * radius, Vector3.down, out groundHit, radius * 4f);
-
         if (grounded && velocity.y < 0.1f)
         {
             ball.position = groundHit.point + Vector3.up * radius;
@@ -170,13 +101,102 @@ public class PhysicsManager : MonoBehaviour
                 velocity = Vector3.ProjectOnPlane(velocity, groundHit.normal);
         }
 
-        if (velocity.magnitude > 0.01f)
-        {
-            Vector3 moveDir = new Vector3(velocity.x, 0f, velocity.z).normalized;
-            Vector3 rotAxis = Vector3.Cross(Vector3.up, moveDir);
+        ApplyVisualRotation(dt);
+    }
 
-            ball.Rotate(rotAxis, angularVelocity * Mathf.Rad2Deg * dt, Space.World);
+    bool CheckGround(out RaycastHit groundHit)
+    {
+        bool grounded = Physics.Raycast(ball.position + Vector3.up * radius, Vector3.down, out groundHit, radius * 4f);
+
+        if (grounded)
+            heightAboveGround = ball.position.y - groundHit.point.y;
+        else
+            heightAboveGround = float.MaxValue;
+
+        return grounded;
+    }
+
+    void UpdateTerrainType(Collider col)
+    {
+        if (col.CompareTag("Cesped")) currentTerrain = TerrainType.Cesped;
+        else if (col.CompareTag("Hielo")) currentTerrain = TerrainType.Hielo;
+        else if (col.CompareTag("Arena")) currentTerrain = TerrainType.Arena;
+    }
+
+    void ApplyGravity(float dt)
+    {
+        velocity.y -= GRAVITY * dt;
+    }
+
+    void ApplyAirDrag(float dt)
+    {
+        float speed = velocity.magnitude;
+        float fDrag = 0.5f * airDensity * speed * speed * dragCoefficient * crossSection;
+        Vector3 dragAcc = -velocity.normalized * (fDrag / mass);
+        velocity += dragAcc * dt;
+    }
+
+    void ApplySlopeForces(Vector3 normal, float slopeAngle, float dt)
+    {
+        float theta = slopeAngle * Mathf.Deg2Rad;
+        float mu = GetFrictionCoeff();
+        float fNormal = mass * GRAVITY * Mathf.Cos(theta);
+        float fParallel = mass * GRAVITY * Mathf.Sin(theta);
+        float fFriction = mu * fNormal;
+        Vector3 slopeDir = Vector3.ProjectOnPlane(Vector3.down, normal).normalized;
+
+        if (velocity.magnitude > 0.05f)
+        {
+            velocity += slopeDir * (fParallel / mass) * dt;
+
+            Vector3 velOnPlane = Vector3.ProjectOnPlane(velocity, normal);
+            if (velOnPlane.magnitude > 0.001f)
+            {
+                Vector3 frictionAcc = -velOnPlane.normalized * (fFriction / mass) * dt;
+                if (frictionAcc.magnitude >= velOnPlane.magnitude)
+                    velocity = Vector3.zero;
+                else
+                    velocity += frictionAcc;
+            }
         }
+        else
+        {
+            if (fParallel > fFriction)
+                velocity += slopeDir * ((fParallel - fFriction) / mass) * dt;
+        }
+    }
+
+    void ApplyFlatFriction(float dt)
+    {
+        if (velocity.magnitude <= 0.05f) return;
+
+        float mu = GetFrictionCoeff();
+        float fNormal = mass * GRAVITY;
+        float torque = -mu * fNormal * radius;
+        float inertia = (2f / 5f) * mass * radius * radius;
+        float alpha = torque / inertia;
+        float frictionAcc = alpha * radius;
+
+        Vector3 flatVel = new Vector3(velocity.x, 0f, velocity.z);
+        angularVelocity = flatVel.magnitude / radius;
+
+        if (flatVel.magnitude > 0.001f)
+        {
+            Vector3 frictionForce = flatVel.normalized * frictionAcc * dt;
+            if (frictionForce.magnitude >= flatVel.magnitude)
+                velocity = new Vector3(0f, velocity.y, 0f);
+            else
+                velocity += frictionForce;
+        }
+    }
+
+    void ApplyVisualRotation(float dt)
+    {
+        if (velocity.magnitude <= 0.01f) return;
+
+        Vector3 moveDir = new Vector3(velocity.x, 0f, velocity.z).normalized;
+        Vector3 rotAxis = Vector3.Cross(Vector3.up, moveDir);
+        ball.Rotate(rotAxis, angularVelocity * Mathf.Rad2Deg * dt, Space.World);
     }
 
     void ResolveWallCollisions(float dt)
